@@ -7,3 +7,6 @@ __pycache__
 build/
 dist/
 *.pyc
+.stage/
+.web_stage/
+.pigeon_scores.json
