@@ -58,3 +58,27 @@ def bfs(maze, start):
                     prev[nb] = cur
                     queue.append(nb)
     return dist, prev
+
+
+def farthest_cell(maze, start):
+    dist, _ = bfs(maze, start)
+    return max(dist, key=dist.get)
+
+
+def solve(maze, start, goal):
+    dist, prev = bfs(maze, start)
+    if goal not in dist:
+        return None
+    path = []
+    cur = goal
+    while cur is not None:
+        path.append(cur)
+        cur = prev[cur]
+    path.reverse()
+    return path
+
+
+def step(maze, cell, direction):
+    if maze.can_move(cell, direction):
+        return (cell[0] + direction[0], cell[1] + direction[1])
+    return cell
