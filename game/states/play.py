@@ -7,7 +7,7 @@ from game.input import tap_direction
 from game.pigeon import slice_sheet, Anim, should_flip
 from game.play_model import PlayModel
 from game.stats import format_time
-from game.directions import LEFT, RIGHT
+from game.directions import LEFT, RIGHT, UP, DOWN
 
 
 class PlayState:
@@ -52,6 +52,19 @@ class PlayState:
             self.held_dir = tap_direction(self._pigeon_screen_px(), event.pos)
             self._try_begin_step()
         elif event.type == pygame.MOUSEBUTTONUP:
+            self.held_dir = None
+        elif event.type == pygame.KEYDOWN:
+            pressed = pygame.key.get_pressed()
+            if pressed[pygame.K_LEFT]:
+                self.held_dir = LEFT
+            elif pressed[pygame.K_RIGHT]:
+                self.held_dir = RIGHT
+            elif pressed[pygame.K_UP]:
+                self.held_dir = UP
+            elif pressed[pygame.K_DOWN]:
+                self.held_dir = DOWN
+            self._try_begin_step()
+        elif event.type == pygame.KEYUP:
             self.held_dir = None
 
     def _try_begin_step(self):
