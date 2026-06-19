@@ -3,6 +3,7 @@ import pygame
 from game import config
 from game.pigeon import slice_sheet, Anim
 from game.stats import efficiency, format_time
+from game.web_bridge import haptic_success
 
 
 class WinState:
@@ -28,6 +29,7 @@ class WinState:
         self.elapsed = model.elapsed_ms(pygame.time.get_ticks())
         self.eff = efficiency(optimal, model.steps)
         self.improved_time, self.improved_eff = app.best.record(self.elapsed, self.eff)
+        haptic_success()
         self.lines = [
             f"Time   {format_time(self.elapsed)}",
             f"Steps  {model.steps}  (best {optimal})",

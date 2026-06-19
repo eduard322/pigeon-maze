@@ -34,6 +34,7 @@ class App:
         self.storage = make_storage()
         from game.storage import BestScores
         self.best = BestScores(self.storage)
+        self.tg_ready = False  # Telegram SDK applied yet? (web only)
         from game.states.menu import MenuState
         self.state = MenuState(self)
 
@@ -64,6 +65,9 @@ async def main():
             _draw_fatal("RUNTIME ERROR:\n" + traceback.format_exc())
             while True:
                 await asyncio.sleep(0.2)
+        if not app.tg_ready:
+            from game.web_bridge import apply_telegram
+            app.tg_ready = apply_telegram()
         pygame.display.flip()
         await asyncio.sleep(0)
     pygame.quit()

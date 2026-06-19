@@ -4,19 +4,51 @@ IS_WEB = sys.platform == "emscripten"
 _window = None
 
 
+def _inject_telegram_sdk():
+    """Add the Telegram WebApp SDK <script> to the page (pygbag's HTML omits it)."""
+    if getattr(_window, "Telegram", None) is not None:
+        return
+    doc = _window.document
+    script = doc.createElement("script")
+    script.src = "https://telegram.org/js/telegram-web-app.js"
+    doc.head.appendChild(script)
+
+
 def init_web():
-    """Best-effort Telegram WebApp init. Safe to call on native (no-op)."""
+    """Inject the Telegram SDK and attempt init. Safe to call on native (no-op)."""
     global _window
     if not IS_WEB:
         return
     import platform
     _window = platform.window
+    _inject_telegram_sdk()
+    apply_telegram()
+
+
+def apply_telegram():
+    """Best-effort ready()/expand()/theme. The injected SDK loads asynchronously,
+    so this is retried from the main loop until it succeeds. Returns True once done."""
+    if not IS_WEB or _window is None:
+        return False
     try:
         tg = _window.Telegram.WebApp
         tg.ready()
         tg.expand()
+        bg = tg.themeParams.bg_color
+        if bg:
+            _window.document.body.style.background = bg
+        return True
     except Exception:
-        pass  # not opened inside Telegram; localStorage still works
+        return False  # not in Telegram yet, or SDK still loading
+
+
+def haptic_success():
+    """Fire a Telegram 'success' haptic. No-op outside Telegram/native."""
+    if IS_WEB and _window is not None:
+        try:
+            _window.Telegram.WebApp.HapticFeedback.notificationOccurred("success")
+        except Exception:
+            pass
 
 
 class WebStorage:
