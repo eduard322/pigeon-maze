@@ -1,5 +1,5 @@
 # Maze
-N = 20                     # maze is N x N cells (tunable)
+N = 15                     # maze is N x N cells (tunable)
 CELL = 22                  # pixel size of one cell
 WALL_T = max(3, CELL // 6) # wall thickness in px
 
