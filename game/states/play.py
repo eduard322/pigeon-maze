@@ -2,9 +2,11 @@ import random
 import pygame
 
 from game import config
-from game.maze import generate, farthest_cell, step
+from game.maze import generate, farthest_cell, solve, step
 from game.input import tap_direction
 from game.pigeon import slice_sheet, Anim, should_flip
+from game.play_model import PlayModel
+from game.stats import format_time
 from game.directions import LEFT, RIGHT
 
 
@@ -14,7 +16,8 @@ class PlayState:
         self.maze = generate(config.N, random.Random(seed))
         self.start = (0, 0)
         self.goal = farthest_cell(self.maze, self.start)
-        self.cell = self.start
+        self.model = PlayModel(self.maze, self.start, self.goal)
+        self.optimal = len(solve(self.maze, self.start, self.goal)) - 1
 
         sheet = pygame.image.load(config.ASSET_WALK).convert_alpha()
         frames = slice_sheet(sheet, *config.WALK_FRAME)
@@ -22,16 +25,16 @@ class PlayState:
         self.standing = frames[0]
         self.scale = config.CELL / config.WALK_FRAME[0] * 1.3
 
-        self.maze_origin = (0, config.HUD_H)
-
         self.held_dir = None
         self.last_horizontal = RIGHT
         self.moving = False
-        self.glide_t = 0.0           # 0..STEP_MS while gliding
-        self.from_px = self._cell_center_px(self.cell)
+        self.glide_t = 0.0
+        self.maze_origin = (0, config.HUD_H)
+        self.from_px = self._cell_center_px(self.model.cell)
         self.to_px = self.from_px
 
-    # --- geometry helpers ---
+        self.hud_font = pygame.font.SysFont("monospace", 24, bold=True)
+
     def _cell_center_px(self, cell):
         ox, oy = self.maze_origin
         return (ox + cell[0] * config.CELL + config.CELL / 2,
@@ -44,7 +47,6 @@ class PlayState:
                     self.from_px[1] + (self.to_px[1] - self.from_px[1]) * f)
         return self.to_px
 
-    # --- input ---
     def handle(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.held_dir = tap_direction(self._pigeon_screen_px(), event.pos)
@@ -52,18 +54,17 @@ class PlayState:
         elif event.type == pygame.MOUSEBUTTONUP:
             self.held_dir = None
 
-    # --- movement ---
     def _try_begin_step(self):
-        if self.moving or self.held_dir is None:
+        if self.moving or self.held_dir is None or self.model.won:
             return
-        nxt = step(self.maze, self.cell, self.held_dir)
-        if nxt == self.cell:
-            return  # wall
+        before = self.model.cell
+        moved = self.model.try_step(self.held_dir, pygame.time.get_ticks())
+        if not moved:
+            return
         if self.held_dir in (LEFT, RIGHT):
             self.last_horizontal = self.held_dir
-        self.from_px = self._cell_center_px(self.cell)
-        self.cell = nxt
-        self.to_px = self._cell_center_px(self.cell)
+        self.from_px = self._cell_center_px(before)
+        self.to_px = self._cell_center_px(self.model.cell)
         self.moving = True
         self.glide_t = 0.0
 
@@ -74,15 +75,20 @@ class PlayState:
             if self.glide_t >= config.STEP_MS:
                 self.moving = False
                 self.glide_t = 0.0
-                self._try_begin_step()  # continue if still held
-        # (win handling added in CP3)
+                if self.model.won:
+                    from game.states.win import WinState
+                    self.app.set_state(
+                        WinState(self.app, self.model, self.optimal,
+                                 self.goal, self.maze))
+                    return
+                self._try_begin_step()
 
-    # --- drawing ---
     def draw(self, surf):
         surf.fill(config.BG)
         self._draw_maze(surf)
         self._draw_seeds(surf)
         self._draw_pigeon(surf)
+        self._draw_hud(surf)
 
     def _draw_maze(self, surf):
         ox, oy = self.maze_origin
@@ -117,3 +123,9 @@ class PlayState:
             frame = pygame.transform.flip(frame, True, False)
         cx, cy = self._pigeon_screen_px()
         surf.blit(frame, frame.get_rect(center=(cx, cy)))
+
+    def _draw_hud(self, surf):
+        now = pygame.time.get_ticks()
+        text = format_time(self.model.elapsed_ms(now))
+        label = self.hud_font.render(text, True, config.TEXT)
+        surf.blit(label, (12, 30))
