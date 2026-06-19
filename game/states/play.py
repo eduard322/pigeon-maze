@@ -9,7 +9,7 @@ from game.directions import LEFT, RIGHT
 
 
 class PlayState:
-    def __init__(self, app, seed=7):
+    def __init__(self, app, seed=None):
         self.app = app
         self.maze = generate(config.N, random.Random(seed))
         self.start = (0, 0)
@@ -81,6 +81,7 @@ class PlayState:
     def draw(self, surf):
         surf.fill(config.BG)
         self._draw_maze(surf)
+        self._draw_seeds(surf)
         self._draw_pigeon(surf)
 
     def _draw_maze(self, surf):
@@ -103,6 +104,11 @@ class PlayState:
                     pygame.draw.rect(surf, config.WALL, (x, y, t, c))
                 if cy == 0 and not self.maze.can_move((cx, cy), (0, -1)):
                     pygame.draw.rect(surf, config.WALL, (x, y, c, t))
+
+    def _draw_seeds(self, surf):
+        cx, cy = self._cell_center_px(self.goal)
+        for dx, dy in [(-4, -2), (2, -4), (5, 0), (-2, 3), (3, 4), (0, 0)]:
+            pygame.draw.rect(surf, config.SEED, (cx + dx, cy + dy, 3, 3))
 
     def _draw_pigeon(self, surf):
         frame = self.walk.current() if self.moving else self.standing
