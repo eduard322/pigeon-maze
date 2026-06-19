@@ -25,11 +25,6 @@ def _draw_fatal(msg):
     pygame.display.flip()
 
 
-class _BestStub:
-    def summary_line(self):
-        return ""
-
-
 class App:
     def __init__(self):
         pygame.init()
@@ -37,7 +32,8 @@ class App:
         pygame.display.set_caption("Pigeon Maze")
         self.clock = pygame.time.Clock()
         self.storage = make_storage()
-        self.best = _BestStub()  # replaced by BestScores in a later task
+        from game.storage import BestScores
+        self.best = BestScores(self.storage)
         from game.states.menu import MenuState
         self.state = MenuState(self)
 

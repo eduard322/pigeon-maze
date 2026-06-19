@@ -34,6 +34,7 @@ class PlayState:
         self.to_px = self.from_px
 
         self.hud_font = pygame.font.SysFont("monospace", 24, bold=True)
+        self.best_font = pygame.font.SysFont("monospace", 18, bold=True)
 
     def _cell_center_px(self, cell):
         ox, oy = self.maze_origin
@@ -142,3 +143,7 @@ class PlayState:
         text = format_time(self.model.elapsed_ms(now))
         label = self.hud_font.render(text, True, config.TEXT)
         surf.blit(label, (12, 30))
+        best = self.app.best.summary_line()
+        if best:
+            b = self.best_font.render(best, True, config.TEXT_DIM)
+            surf.blit(b, b.get_rect(topright=(config.WIDTH - 12, 36)))
