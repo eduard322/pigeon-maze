@@ -14,16 +14,16 @@ class WinState:
         self.maze = maze
         sheet = pygame.image.load(config.ASSET_PECK).convert_alpha()
         self.peck = Anim(slice_sheet(sheet, *config.PECK_FRAME), config.PECK_FPS)
-        self.peck_scale = 3
-        self.font = pygame.font.SysFont("monospace", 20, bold=True)
-        self.big = pygame.font.SysFont("monospace", 24, bold=True)
+        self.peck_scale = 3 * config.S
+        self.font = pygame.font.SysFont("monospace", config.FONT_UI, bold=True)
+        self.big = pygame.font.SysFont("monospace", config.FONT_BIG, bold=True)
 
         # Buttons anchored from the bottom so the layout fits any screen height.
-        bw, bh = 200, 50
+        bw, bh = 200 * config.S, 50 * config.S
         self.menu_rect = pygame.Rect(0, 0, bw, bh)
-        self.menu_rect.center = (config.WIDTH // 2, config.HEIGHT - 44)
+        self.menu_rect.center = (config.WIDTH // 2, config.HEIGHT - 44 * config.S)
         self.repeat_rect = pygame.Rect(0, 0, bw, bh)
-        self.repeat_rect.center = (config.WIDTH // 2, config.HEIGHT - 104)
+        self.repeat_rect.center = (config.WIDTH // 2, config.HEIGHT - 104 * config.S)
 
         self.elapsed = model.elapsed_ms(pygame.time.get_ticks())
         self.eff = efficiency(optimal, model.steps)
@@ -47,19 +47,20 @@ class WinState:
         self.peck.update(dt)
 
     def draw(self, surf):
+        s = config.S
         surf.fill(config.BG)
         frame = pygame.transform.scale_by(self.peck.current(), self.peck_scale)
-        surf.blit(frame, frame.get_rect(center=(config.WIDTH // 2, 58)))
+        surf.blit(frame, frame.get_rect(center=(config.WIDTH // 2, 58 * s)))
         title = self.big.render("YOU GOT THE SEEDS!", True, config.TEXT)
-        surf.blit(title, title.get_rect(center=(config.WIDTH // 2, 124)))
-        y = 168
+        surf.blit(title, title.get_rect(center=(config.WIDTH // 2, 124 * s)))
+        y = 168 * s
         for line in self.lines:
             row = self.font.render(line, True, config.TEXT)
             surf.blit(row, row.get_rect(center=(config.WIDTH // 2, y)))
-            y += 26
+            y += 26 * s
         if self.improved_time or self.improved_eff:
             tag = self.font.render("NEW BEST!", True, config.SEED)
-            surf.blit(tag, tag.get_rect(center=(config.WIDTH // 2, y + 6)))
+            surf.blit(tag, tag.get_rect(center=(config.WIDTH // 2, y + 6 * s)))
         for rect, text in ((self.repeat_rect, "REPEAT"), (self.menu_rect, "MENU")):
             pygame.draw.rect(surf, config.BUTTON, rect, border_radius=12)
             label = self.font.render(text, True, config.BUTTON_TEXT)

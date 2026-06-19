@@ -33,8 +33,8 @@ class PlayState:
         self.from_px = self._cell_center_px(self.model.cell)
         self.to_px = self.from_px
 
-        self.hud_font = pygame.font.SysFont("monospace", 24, bold=True)
-        self.best_font = pygame.font.SysFont("monospace", 18, bold=True)
+        self.hud_font = pygame.font.SysFont("monospace", config.FONT_HUD, bold=True)
+        self.best_font = pygame.font.SysFont("monospace", config.FONT_SMALL, bold=True)
 
     def _cell_center_px(self, cell):
         ox, oy = self.maze_origin
@@ -127,8 +127,10 @@ class PlayState:
 
     def _draw_seeds(self, surf):
         cx, cy = self._cell_center_px(self.goal)
+        s = config.S
         for dx, dy in [(-4, -2), (2, -4), (5, 0), (-2, 3), (3, 4), (0, 0)]:
-            pygame.draw.rect(surf, config.SEED, (cx + dx, cy + dy, 3, 3))
+            pygame.draw.rect(surf, config.SEED,
+                             (cx + dx * s, cy + dy * s, 3 * s, 3 * s))
 
     def _draw_pigeon(self, surf):
         frame = self.walk.current() if self.moving else self.standing
@@ -142,8 +144,8 @@ class PlayState:
         now = pygame.time.get_ticks()
         text = format_time(self.model.elapsed_ms(now))
         label = self.hud_font.render(text, True, config.TEXT)
-        surf.blit(label, (12, 30))
+        surf.blit(label, (12 * config.S, 30 * config.S))
         best = self.app.best.summary_line()
         if best:
             b = self.best_font.render(best, True, config.TEXT_DIM)
-            surf.blit(b, b.get_rect(topright=(config.WIDTH - 12, 36)))
+            surf.blit(b, b.get_rect(topright=(config.WIDTH - 12 * config.S, 36 * config.S)))
