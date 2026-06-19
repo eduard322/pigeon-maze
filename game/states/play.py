@@ -2,7 +2,7 @@ import random
 import pygame
 
 from game import config
-from game.maze import generate, farthest_cell, solve, step
+from game.maze import generate, farthest_cell, solve
 from game.input import tap_direction
 from game.pigeon import slice_sheet, Anim, should_flip
 from game.play_model import PlayModel
