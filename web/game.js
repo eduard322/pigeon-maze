@@ -18,7 +18,7 @@ const HUD_H = 96 * S;                      // 192 px HUD band
 const VW = N * CELL;                       // 660 virtual px wide
 const VH = N * CELL + HUD_H;               // 852 virtual px tall
 
-const STEP_MS = 110;                       // glide time across one cell
+const STEP_MS = 75;                       // glide time across one cell
 const WALK_FPS = 14;
 const PECK_FPS = 8;
 const WALK_FRAME = [32, 32];
