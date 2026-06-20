@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pigeon Maze</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#15110f" />
+
+  <!-- Telegram Mini App SDK. First-party to Telegram, small, loads reliably in
+       the in-app webview. Loaded synchronously so window.Telegram exists before
+       the game boots. Harmless (absent) when opened in a normal browser. -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root { --bg: #15110f; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;            /* no pinch-zoom / pull-to-refresh stealing input */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #stage {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* The canvas keeps the game's portrait aspect ratio and fits the viewport,
+       letterboxed against the background. Pixel art stays crisp. */
+    #game {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage"><canvas id="game"></canvas></div>
+  <script src="game.js"></script>
+</body>
+</html>
