@@ -15,8 +15,12 @@ const N = 15;                              // maze is N x N cells
 const CELL = 22 * S;                       // 44 px per cell
 const WALL_T = Math.max(3, Math.floor(CELL / 6)); // 7 px walls
 const HUD_H = 96 * S;                      // 192 px HUD band
+const CTRL_H = 120 * S;                     // 240 px D-pad control band
+const DPAD_BTN = 44 * S;                    // 88 px D-pad button
+const DPAD_GAP = 8 * S;                     // 16 px gap between buttons
 const VW = N * CELL;                       // 660 virtual px wide
-const VH = N * CELL + HUD_H;               // 852 virtual px tall
+const MAZE_BOTTOM = HUD_H + N * CELL;       // 852 px: where the maze ends
+const VH = MAZE_BOTTOM + CTRL_H;            // 1092 virtual px tall (maze + D-pad)
 
 const STEP_MS = 75;                       // glide time across one cell
 const WALK_FPS = 14;
@@ -268,6 +272,20 @@ function text(str, x, y, px, col, align = "left", baseline = "top") {
   ctx.fillText(str, x, y);
 }
 
+/* greedy word-wrap to keep long strings inside maxWidth virtual px */
+function wrapLines(str, px, maxWidth) {
+  ctx.font = fontStr(px);
+  const lines = [];
+  let cur = "";
+  for (const word of str.split(" ")) {
+    const test = cur ? cur + " " + word : word;
+    if (cur && ctx.measureText(test).width > maxWidth) { lines.push(cur); cur = word; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
 function rectCenter(cx, cy, w, h) { return { x: cx - w / 2, y: cy - h / 2, w, h }; }
 function inRect(r, x, y) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
 
@@ -303,11 +321,11 @@ class MenuState {
   constructor(app) {
     this.app = app;
     this.pigeon = WALK_FRAMES[0];
-    this.playRect = rectCenter(VW / 2, VH / 2 + 120 * S, 200 * S, 56 * S);
+    this.playRect = rectCenter(VW / 2, MAZE_BOTTOM / 2 + 120 * S, 200 * S, 56 * S);
   }
   handle(e) {
     if (e.type === "pointerdown" && inRect(this.playRect, e.x, e.y)) {
-      this.app.setState(new PlayState(this.app));
+      this.app.setState(new ChooseUserState(this.app));
     }
   }
   update(_dt) {}
@@ -317,13 +335,43 @@ class MenuState {
     drawFrame(this.pigeon, VW / 2, 240 * S, MENU_PIGEON_SCALE, false);
     drawButton(this.playRect, "PLAY");
     const b = this.app.best.summary();
-    if (b) text(b, VW / 2, VH - 60 * S, F_UI, COL.TEXT_DIM, "center", "middle");
+    if (b) text(b, VW / 2, MAZE_BOTTOM - 50 * S, F_UI, COL.TEXT_DIM, "center", "middle");
+  }
+}
+
+class ChooseUserState {
+  constructor(app, model, optimal) {
+    this.app = app;
+    this.peck = new Anim(PECK_FRAMES, PECK_FPS);
+    const bw = 200 * S, bh = 50 * S;
+    this.yesRect = rectCenter(VW / 2, MAZE_BOTTOM - 104 * S, bw, bh);
+    this.noRect = rectCenter(VW / 2, MAZE_BOTTOM - 44 * S, bw, bh);
+  }
+  handle(e) {
+    if (e.type !== "pointerdown") return;
+    if (inRect(this.yesRect, e.x, e.y)) {
+      this.app.setState(new PlayState(this.app, true));
+    }
+    else if (inRect(this.noRect, e.x, e.y)) {
+      this.app.setState(new PlayState(this.app, false));
+    }
+  }
+  update(dt) { this.peck.update(dt); }
+  draw() {
+    clear(COL.BG);
+    drawFrame(this.peck.current(), VW / 2, 58 * S, PECK_SCALE, false);
+    text("BIST DU SOPHIA?", VW / 2, 124 * S, F_BIG, COL.TEXT, "center", "middle");
+
+    drawButton(this.yesRect, "JA");
+    drawButton(this.noRect, "NEIN");
   }
 }
 
 class PlayState {
-  constructor(app) {
+  constructor(app, if_Sophia = false) {
     this.app = app;
+    this.if_Sophia = if_Sophia;
+    this.pad = this.buildPad();
     this.maze = generate(N);
     this.start = [0, 0];
     this.goal = farthestCell(this.maze, this.start);
@@ -352,9 +400,29 @@ class PlayState {
     }
     return this.toPx;
   }
+  buildPad() {
+    const b = DPAD_BTN, g = DPAD_GAP, cx = VW / 2;
+    const crossH = 2 * b + g;
+    const top = MAZE_BOTTOM + (CTRL_H - crossH) / 2; // vertically centre cross in band
+    const r1 = top + b / 2, r2 = r1 + b + g;         // row centres (up; left/down/right)
+    const colL = cx - (b + g), colR = cx + (b + g);  // side column centres
+    return [
+      { dir: UP,    glyph: "▲", rect: rectCenter(cx,   r1, b, b) },
+      { dir: LEFT,  glyph: "◀", rect: rectCenter(colL, r2, b, b) },
+      { dir: DOWN,  glyph: "▼", rect: rectCenter(cx,   r2, b, b) },
+      { dir: RIGHT, glyph: "▶", rect: rectCenter(colR, r2, b, b) },
+    ];
+  }
+  padHit(x, y) {
+    for (const btn of this.pad) if (inRect(btn.rect, x, y)) return btn.dir;
+    return null;
+  }
   handle(e) {
     if (e.type === "pointerdown") {
-      this.heldDir = tapDirection(this.pigeonPx(), [e.x, e.y]);
+      const padDir = this.padHit(e.x, e.y);
+      if (padDir) this.heldDir = padDir;
+      else if (e.y < MAZE_BOTTOM) this.heldDir = tapDirection(this.pigeonPx(), [e.x, e.y]);
+      else return;                       // tap in empty control band: ignore
       this.tryBegin();
     } else if (e.type === "pointerup") {
       this.heldDir = null;
@@ -383,7 +451,7 @@ class PlayState {
       this.moving = false;
       this.glideT = 0;
       if (this.model.won) {
-        this.app.setState(new WinState(this.app, this.model, this.optimal));
+        this.app.setState(new WinState(this.app, this.model, this.optimal, this.if_Sophia));
         return;
       }
       this.tryBegin(); // continue if a direction is still held
@@ -395,6 +463,7 @@ class PlayState {
     this.drawSeeds();
     this.drawPigeon();
     this.drawHud();
+    this.drawPad();
   }
   drawMaze() {
     const [ox, oy] = this.mazeOrigin, c = CELL, t = WALL_T;
@@ -428,19 +497,28 @@ class PlayState {
     drawFrame(f, cx, cy, this.scale, shouldFlip(this.heldDir, this.lastHorizontal));
   }
   drawHud() {
-    text(formatTime(this.model.elapsed(now())), 12 * S, 30 * S, F_HUD, COL.TEXT, "left", "top");
+    const cx = VW / 2;
+    text(formatTime(this.model.elapsed(now())), cx, 30 * S, F_HUD, COL.TEXT, "center", "top");
     const b = this.app.best.summary();
-    if (b) text(b, VW - 12 * S, 36 * S, F_SMALL, COL.TEXT_DIM, "right", "top");
+    if (b) text(b, cx, 30 * S + F_HUD * 1.2, F_SMALL, COL.TEXT_DIM, "center", "top");
+  }
+  drawPad() {
+    for (const btn of this.pad) {
+      const r = btn.rect, pressed = this.heldDir === btn.dir;
+      ctx.fillStyle = pressed ? COL.BUTTON : "rgb(46,40,36)";
+      roundRectPath(r.x, r.y, r.w, r.h, 10 * S);
+      ctx.fill();
+      text(btn.glyph, r.x + r.w / 2, r.y + r.h / 2, F_BIG,
+           pressed ? COL.BUTTON_TEXT : COL.TEXT, "center", "middle");
+    }
   }
 }
 
 class WinState {
-  constructor(app, model, optimal) {
+  constructor(app, model, optimal, if_Sophia = false) {
     this.app = app;
+    this.if_Sophia = if_Sophia;
     this.peck = new Anim(PECK_FRAMES, PECK_FPS);
-    const bw = 200 * S, bh = 50 * S;
-    this.repeatRect = rectCenter(VW / 2, VH - 104 * S, bw, bh);
-    this.menuRect = rectCenter(VW / 2, VH - 44 * S, bw, bh);
     this.elapsed = model.elapsed(now());
     this.eff = efficiency(optimal, model.steps);
     [this.improvedTime, this.improvedEff] = app.best.record(this.elapsed, this.eff);
@@ -450,6 +528,21 @@ class WinState {
       "Steps  " + model.steps + "  (best " + optimal + ")",
       "Route  " + Math.round(this.eff * 100) + "% efficient",
     ];
+    // status banner: the Sophia birthday message replaces NEW BEST!
+    if (if_Sophia) {
+      const msg = "SOPHIA, ALLES GUTE ZUM GEBURTSTAG! CHECKE EDICKS KOMMODENSCHUBLADE FÜR DEN PREIS! 😱";
+      this.status = wrapLines(msg, F_UI, VW - 40 * S);
+    } else if (this.improvedTime || this.improvedEff) {
+      this.status = ["NEW BEST!"];
+    } else {
+      this.status = [];
+    }
+    // buttons sit just below the text block, so the wrapped message never overlaps
+    this.statusTop = 168 * S + this.lines.length * 26 * S + 6 * S;
+    const statusBottom = this.statusTop + this.status.length * F_UI * 1.25;
+    const bw = 200 * S, bh = 50 * S, top = statusBottom + 28 * S;
+    this.repeatRect = rectCenter(VW / 2, top + bh / 2, bw, bh);
+    this.menuRect = rectCenter(VW / 2, top + bh + 10 * S + bh / 2, bw, bh);
   }
   handle(e) {
     if (e.type !== "pointerdown") return;
@@ -466,8 +559,10 @@ class WinState {
       text(line, VW / 2, y, F_UI, COL.TEXT, "center", "middle");
       y += 26 * S;
     }
-    if (this.improvedTime || this.improvedEff) {
-      text("NEW BEST!", VW / 2, y + 6 * S, F_UI, COL.SEED, "center", "middle");
+    let sy = this.statusTop;
+    for (const line of this.status) {
+      text(line, VW / 2, sy, F_UI, COL.SEED, "center", "middle");
+      sy += F_UI * 1.25;
     }
     drawButton(this.repeatRect, "REPEAT");
     drawButton(this.menuRect, "MENU");
@@ -550,6 +645,6 @@ async function boot() {
 // test hooks (used by tools/cdp_check.js; harmless in production)
 window.__pigeon = {
   app, canvas, VW, VH, DIRS, canMove, generate, bfs,
-  farthestCell, optimalSteps, solvePath, PlayModel, PlayState, WinState, MenuState,
+  farthestCell, optimalSteps, solvePath, PlayModel, PlayState, WinState, MenuState, ChooseUserState
 };
 boot();
